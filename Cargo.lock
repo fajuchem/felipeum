@@ -668,6 +668,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "felipeum"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "libp2p",
+ "log",
+ "once_cell",
+ "pretty_env_logger",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+]
+
+[[package]]
 name = "fixedbitset"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2468,22 +2484,6 @@ name = "signature"
 version = "1.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
-
-[[package]]
-name = "simple-blockchain"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "hex",
- "libp2p",
- "log",
- "once_cell",
- "pretty_env_logger",
- "serde",
- "serde_json",
- "sha2",
- "tokio",
-]
 
 [[package]]
 name = "slab"

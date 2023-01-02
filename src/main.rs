@@ -9,10 +9,9 @@ use libp2p::{
     Transport,
 };
 use log::{error, info, warn};
-use p2p::AppBehaviour;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{collections::HashSet, time::Duration};
+use std::time::Duration;
 use tokio::{
     io::{stdin, AsyncBufReadExt, BufReader},
     select, spawn,
@@ -117,7 +116,7 @@ impl App {
         {
             warn!("block with id: {} has invalid difficulty", block.id);
             return false;
-        } else if block.id != previous_block.id {
+        } else if block.id != previous_block.id + 1 {
             warn!(
                 "block with id: {} is not the next block after the latest: {}",
                 block.id, previous_block.id
@@ -246,7 +245,7 @@ async fn main() {
                     Some(p2p::EventType::Init)
                 }
                 event = swarm.select_next_some() => {
-                    info!("Unhandled Swarm Event: {:?}", event);
+                    // info!("Unhandled Swarm Event: {:?}", event);
                     None
                 },
             }
