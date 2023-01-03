@@ -1,4 +1,3 @@
-use super::{App, Block};
 use libp2p::{
     floodsub::{Floodsub, FloodsubEvent, Topic},
     identity,
@@ -8,6 +7,8 @@ use libp2p::{
 };
 use log::{error, info};
 use once_cell::sync::Lazy;
+use primitives::block::Block;
+use primitives::chain::Chain;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tokio::sync::mpsc;
@@ -43,12 +44,12 @@ pub struct AppBehaviour {
     #[behaviour(ignore)]
     pub init_sender: mpsc::UnboundedSender<bool>,
     #[behaviour(ignore)]
-    pub app: App,
+    pub app: Chain,
 }
 
 impl AppBehaviour {
     pub async fn new(
-        app: App,
+        app: Chain,
         response_sender: mpsc::UnboundedSender<ChainResponse>,
         init_sender: mpsc::UnboundedSender<bool>,
     ) -> Self {

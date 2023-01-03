@@ -671,15 +671,14 @@ dependencies = [
 name = "felipeum"
 version = "0.1.0"
 dependencies = [
- "chrono",
- "hex",
+ "jsonrpsee",
  "libp2p",
  "log",
  "once_cell",
  "pretty_env_logger",
+ "primitives",
  "serde",
  "serde_json",
- "sha2",
  "tokio",
 ]
 
@@ -1140,6 +1139,12 @@ checksum = "49409df3e3bf0856b916e2ceaca09ee28e6871cf7d9ce97a692cacfdb2a25a47"
 dependencies = [
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "jsonrpsee"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d291e3a5818a2384645fd9756362e6d89cf0541b0b916fa7702ea4a9833608e"
 
 [[package]]
 name = "keccak"
@@ -2068,6 +2073,18 @@ checksum = "926d36b9553851b8b0005f1275891b392ee4d2d833852c417ed025477350fb9d"
 dependencies = [
  "env_logger",
  "log",
+]
+
+[[package]]
+name = "primitives"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "log",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
