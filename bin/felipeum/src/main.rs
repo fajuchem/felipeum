@@ -1,3 +1,8 @@
+use fe_p2p::p2p::{
+    get_list_peers, handle_create_block, handle_print_chain, handle_print_peers, AppBehaviour,
+    EventType, LocalChainRequest, CHAIN_TOPIC, KEYS, PEER_ID,
+};
+use fe_primitives::chain::Chain;
 use libp2p::{
     core::upgrade,
     futures::StreamExt,
@@ -8,7 +13,6 @@ use libp2p::{
     Transport,
 };
 use log::{error, info};
-use primitives::chain::Chain;
 use std::time::Duration;
 use tokio::{
     io::{stdin, AsyncBufReadExt, BufReader},
@@ -17,18 +21,16 @@ use tokio::{
     time::sleep,
 };
 
-mod p2p;
-
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
 
-    info!("Peer Id: {}", p2p::PEER_ID.clone());
+    info!("Peer Id: {}", PEER_ID.clone());
     let (response_sender, mut response_rcv) = mpsc::unbounded_channel();
     let (init_sender, mut init_rcv) = mpsc::unbounded_channel();
 
     let auth_keys = Keypair::<X25519Spec>::new()
-        .into_authentic(&p2p::KEYS)
+        .into_authentic(&KEYS)
         .expect("can create auth keys");
 
     let transp = TokioTcpConfig::new()
@@ -37,9 +39,8 @@ async fn main() {
         .multiplex(mplex::MplexConfig::new())
         .boxed();
 
-    let behaviour =
-        p2p::AppBehaviour::new(Chain::new(), response_sender, init_sender.clone()).await;
-    let mut swarm = SwarmBuilder::new(transp, behaviour, *p2p::PEER_ID)
+    let behaviour = AppBehaviour::new(Chain::new(), response_sender, init_sender.clone()).await;
+    let mut swarm = SwarmBuilder::new(transp, behaviour, *PEER_ID)
         .executor(Box::new(|fut| {
             spawn(fut);
         }))
@@ -64,14 +65,14 @@ async fn main() {
     loop {
         let evt = {
             select! {
-                line = stdin.next_line() => Some(p2p::EventType::Input(line.expect("can get line").expect("can read line from stdin"))),
+                line = stdin.next_line() => Some(EventType::Input(line.expect("can get line").expect("can read line from stdin"))),
                 response = response_rcv.recv() => {
-                    Some(p2p::EventType::LocalChainResponse(response.expect("response exists")))
+                    Some(EventType::LocalChainResponse(response.expect("response exists")))
                 },
                 _init = init_rcv.recv() => {
-                    Some(p2p::EventType::Init)
+                    Some(EventType::Init)
                 }
-                event = swarm.select_next_some() => {
+                _ = swarm.select_next_some() => {
                     // info!("Unhandled Swarm Event: {:?}", event);
                     None
                 },
@@ -80,13 +81,13 @@ async fn main() {
 
         if let Some(event) = evt {
             match event {
-                p2p::EventType::Init => {
-                    let peers = p2p::get_list_peers(&swarm);
+                EventType::Init => {
+                    let peers = get_list_peers(&swarm);
                     swarm.behaviour_mut().app.genesis();
 
                     info!("connected nodes: {}", peers.len());
                     if !peers.is_empty() {
-                        let req = p2p::LocalChainRequest {
+                        let req = LocalChainRequest {
                             from_peer_id: peers
                                 .iter()
                                 .last()
@@ -98,20 +99,20 @@ async fn main() {
                         swarm
                             .behaviour_mut()
                             .floodsub
-                            .publish(p2p::CHAIN_TOPIC.clone(), json.as_bytes());
+                            .publish(CHAIN_TOPIC.clone(), json.as_bytes());
                     }
                 }
-                p2p::EventType::LocalChainResponse(resp) => {
+                EventType::LocalChainResponse(resp) => {
                     let json = serde_json::to_string(&resp).expect("can jsonify response");
                     swarm
                         .behaviour_mut()
                         .floodsub
-                        .publish(p2p::CHAIN_TOPIC.clone(), json.as_bytes());
+                        .publish(CHAIN_TOPIC.clone(), json.as_bytes());
                 }
-                p2p::EventType::Input(line) => match line.as_str() {
-                    "ls p" => p2p::handle_print_peers(&swarm),
-                    cmd if cmd.starts_with("ls c") => p2p::handle_print_chain(&swarm),
-                    cmd if cmd.starts_with("create b") => p2p::handle_create_block(cmd, &mut swarm),
+                EventType::Input(line) => match line.as_str() {
+                    "ls p" => handle_print_peers(&swarm),
+                    cmd if cmd.starts_with("ls c") => handle_print_chain(&swarm),
+                    cmd if cmd.starts_with("create b") => handle_create_block(cmd, &mut swarm),
                     _ => error!("unknown command"),
                 },
             }

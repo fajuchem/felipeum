@@ -1,3 +1,5 @@
+use fe_primitives::block::Block;
+use fe_primitives::chain::Chain;
 use libp2p::{
     floodsub::{Floodsub, FloodsubEvent, Topic},
     identity,
@@ -7,8 +9,6 @@ use libp2p::{
 };
 use log::{error, info};
 use once_cell::sync::Lazy;
-use primitives::block::Block;
-use primitives::chain::Chain;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tokio::sync::mpsc;

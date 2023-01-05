@@ -668,15 +668,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "fe_p2p"
+version = "0.1.0"
+dependencies = [
+ "fe_primitives",
+ "libp2p",
+ "log",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "fe_primitives"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "log",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "felipeum"
 version = "0.1.0"
 dependencies = [
+ "fe_p2p",
+ "fe_primitives",
  "jsonrpsee",
  "libp2p",
  "log",
  "once_cell",
  "pretty_env_logger",
- "primitives",
  "serde",
  "serde_json",
  "tokio",
@@ -1885,9 +1911,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.16.0"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86f0b0d4bf799edbc74508c1e8bf170ff5f41238e5f8225603ca7caaae2b7860"
+checksum = "6f61fba1741ea2b3d6a1e3178721804bb716a68a6aeba1149b5d52e3d464ea66"
 
 [[package]]
 name = "opaque-debug"
@@ -2073,18 +2099,6 @@ checksum = "926d36b9553851b8b0005f1275891b392ee4d2d833852c417ed025477350fb9d"
 dependencies = [
  "env_logger",
  "log",
-]
-
-[[package]]
-name = "primitives"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "hex",
- "log",
- "serde",
- "serde_json",
- "sha2",
 ]
 
 [[package]]
@@ -2429,18 +2443,18 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.151"
+version = "1.0.152"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97fed41fc1a24994d044e6db6935e69511a1153b52c15eb42493b26fa87feba0"
+checksum = "bb7d1f0d3021d347a83e556fc4683dea2ea09d87bccdf88ff5c12545d89d5efb"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.151"
+version = "1.0.152"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "255abe9a125a985c05190d687b320c12f9b1f0b99445e608c21ba0782c719ad8"
+checksum = "af487d118eecd09402d70a5d72551860e788df87b464af30e5ea6a38c75c541e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2684,9 +2698,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.23.0"
+version = "1.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eab6d665857cc6ca78d6e80303a02cea7a7851e85dfbd77cbdc09bd129f1ef46"
+checksum = "38a54aca0c15d014013256222ba0ebed095673f89345dd79119d912eb561b7a8"
 dependencies = [
  "autocfg",
  "bytes 1.3.0",
