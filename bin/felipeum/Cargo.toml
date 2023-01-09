@@ -6,8 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fe_primitives = { path = "../../crates/primitives" }
-fe_p2p = { path = "../../crates/net/p2p" }
+felipeum_primitives = { path = "../../crates/primitives" }
+felipeum_p2p = { path = "../../crates/net/p2p" }
+felipeum_rpc = { path = "../../crates/net/rpc" }
+felipeum_transaction_pool = { path = "../../crates/transaction-pool" }
 serde = {version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 libp2p = { version = "0.39", features = ["tcp-tokio", "mdns"] }

@@ -1,8 +1,10 @@
-use fe_p2p::p2p::{
+use felipeum_p2p::p2p::{
     get_list_peers, handle_create_block, handle_print_chain, handle_print_peers, AppBehaviour,
     EventType, LocalChainRequest, CHAIN_TOPIC, KEYS, PEER_ID,
 };
-use fe_primitives::chain::Chain;
+use felipeum_primitives::chain::Chain;
+use felipeum_rpc::rpc::run_server;
+use felipeum_transaction_pool::pool::TransactionPool;
 use libp2p::{
     core::upgrade,
     futures::StreamExt,
@@ -55,6 +57,12 @@ async fn main() {
             .expect("can get a local socket"),
     )
     .expect("swarm can be started");
+
+    let pool = TransactionPool::new();
+
+    let server_addr = run_server(&pool).await;
+    let url = format!("http://{}", server_addr.unwrap());
+    println!("{}", url);
 
     spawn(async move {
         sleep(Duration::from_secs(1)).await;

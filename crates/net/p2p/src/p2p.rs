@@ -1,5 +1,5 @@
-use fe_primitives::block::Block;
-use fe_primitives::chain::Chain;
+use felipeum_primitives::block::Block;
+use felipeum_primitives::chain::Chain;
 use libp2p::{
     floodsub::{Floodsub, FloodsubEvent, Topic},
     identity,

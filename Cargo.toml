@@ -2,6 +2,8 @@
 members = [
     "bin/felipeum",
     "crates/net/p2p",
+    "crates/net/rpc",
     "crates/primitives",
+    "crates/transaction-pool",
 ]
 default-members = ["bin/felipeum"]
