@@ -8,8 +8,12 @@ edition = "2021"
 [dependencies]
 jsonrpsee = { version = "0.16", features = ["server", "client", "macros"] }
 felipeum_transaction_pool = { path = "../../transaction-pool" }
+felipeum_signature = { path = "../../signature" }
+felipeum_primitives = { path = "../../primitives" }
 tokio = "1.23.1"
 tracing-subscriber = "0.3.16"
 anyhow = "1.0.68"
 serde_json = "1.0"
 serde = "1.0.152"
+hex = "0.4.3"
+rand = "0.8.5"

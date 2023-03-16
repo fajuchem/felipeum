@@ -1,15 +1,21 @@
 use crate::block::{calculate_hash, hash_to_binary_representation, Block, DIFFICULTY_PREFIX};
 use chrono::Utc;
+use felipeum_primitives::transaction::Transaction;
+use felipeum_transaction_pool::pool::{Pool, PoolError};
 use log::{error, warn};
 
 #[derive(Debug)]
 pub struct Chain {
     pub blocks: Vec<Block>,
+    pub pool: Pool,
 }
 
 impl Chain {
-    pub fn new() -> Self {
-        Self { blocks: vec![] }
+    pub fn new(pool: Pool) -> Self {
+        Self {
+            blocks: vec![],
+            pool,
+        }
     }
 
     pub fn genesis(&mut self) {
@@ -87,6 +93,15 @@ impl Chain {
             local
         } else {
             panic!("local and remote chains are both invalid");
+        }
+    }
+
+    pub fn add_new_pool_transaction(&self, tx: Transaction) -> Result<Transaction, PoolError> {
+        // TODO: here we are checking before insert to avoid a loop betweeen peers,
+        // ideally we don't want to broadcast to all nodes but for now it's eaier this way
+        match self.pool.get(tx.transaction_id.clone()) {
+            Some(_) => Err(PoolError::DiscardedOnInsert("already in pool".to_string())),
+            None => self.pool.add_transaction(tx),
         }
     }
 

@@ -1,10 +1,12 @@
-use felipeum_p2p::p2p::{
-    get_list_peers, handle_create_block, handle_print_chain, handle_print_peers, AppBehaviour,
-    EventType, LocalChainRequest, CHAIN_TOPIC, KEYS, PEER_ID,
+use felipeum_p2p::{
+    chain::Chain,
+    p2p::{
+        get_list_peers, handle_create_block, handle_print_chain, handle_print_peers, AppBehaviour,
+        EventType, LocalChainRequest, CHAIN_TOPIC, KEYS, PEER_ID, POOL_TX_TOPIC,
+    },
 };
-use felipeum_primitives::chain::Chain;
 use felipeum_rpc::rpc::run_server;
-use felipeum_transaction_pool::pool::TransactionPool;
+use felipeum_transaction_pool::pool::Pool;
 use libp2p::{
     core::upgrade,
     futures::StreamExt,
@@ -23,10 +25,49 @@ use tokio::{
     time::sleep,
 };
 
+// TODO: kind of replace the MockEthProvider from reth
+pub async fn run_executor(pool: Pool, storage: Storage) {
+    loop {
+        sleep(Duration::from_secs(3)).await;
+        info!("executor");
+        let all = pool.get_all();
+        println!("{:?}", all);
+    }
+}
+
+#[derive(Clone)]
+pub struct Storage {
+    blocks: Vec<String>,
+}
+
+impl Storage {
+    fn new() -> Self {
+        Self { blocks: vec![] }
+    }
+
+    fn add_block(&mut self, block: String) {
+        self.blocks.push(block);
+    }
+}
+
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
 
+    // initialize pool
+    let pool = Pool::new();
+
+    let mut recv_trans = pool.add_transaction_listener();
+
+    match run_server(pool.clone()).await {
+        Ok(server) => format!("http://{}", server),
+        Err(msg) => format!("{}", msg),
+    };
+
+    // initialize storage
+    let storage = Storage::new();
+
+    // itiliaze p2p
     info!("Peer Id: {}", PEER_ID.clone());
     let (response_sender, mut response_rcv) = mpsc::unbounded_channel();
     let (init_sender, mut init_rcv) = mpsc::unbounded_channel();
@@ -41,7 +82,12 @@ async fn main() {
         .multiplex(mplex::MplexConfig::new())
         .boxed();
 
-    let behaviour = AppBehaviour::new(Chain::new(), response_sender, init_sender.clone()).await;
+    let behaviour = AppBehaviour::new(
+        Chain::new(pool.clone()),
+        response_sender,
+        init_sender.clone(),
+    )
+    .await;
     let mut swarm = SwarmBuilder::new(transp, behaviour, *PEER_ID)
         .executor(Box::new(|fut| {
             spawn(fut);
@@ -58,11 +104,7 @@ async fn main() {
     )
     .expect("swarm can be started");
 
-    let pool = TransactionPool::new();
-
-    let server_addr = run_server(&pool).await;
-    let url = format!("http://{}", server_addr.unwrap());
-    println!("{}", url);
+    spawn(run_executor(pool.clone(), storage.clone()));
 
     spawn(async move {
         sleep(Duration::from_secs(1)).await;
@@ -73,6 +115,13 @@ async fn main() {
     loop {
         let evt = {
             select! {
+                tx = recv_trans.recv() => {
+                    println!("new tx added in the local pool");
+                    match tx {
+                        Some(tx) => Some(EventType::NewTx(tx.transaction.transaction)),
+                        None => None,
+                    }
+                },
                 line = stdin.next_line() => Some(EventType::Input(line.expect("can get line").expect("can read line from stdin"))),
                 response = response_rcv.recv() => {
                     Some(EventType::LocalChainResponse(response.expect("response exists")))
@@ -81,7 +130,6 @@ async fn main() {
                     Some(EventType::Init)
                 }
                 _ = swarm.select_next_some() => {
-                    // info!("Unhandled Swarm Event: {:?}", event);
                     None
                 },
             }
@@ -119,10 +167,22 @@ async fn main() {
                 }
                 EventType::Input(line) => match line.as_str() {
                     "ls p" => handle_print_peers(&swarm),
+                    "ls pool" => {
+                        let all = pool.get_all();
+                        println!("{:?}", all);
+                    }
                     cmd if cmd.starts_with("ls c") => handle_print_chain(&swarm),
                     cmd if cmd.starts_with("create b") => handle_create_block(cmd, &mut swarm),
                     _ => error!("unknown command"),
                 },
+                EventType::NewTx(new_tx) => {
+                    let json = serde_json::to_string(&new_tx).expect("can jsonify response");
+                    swarm
+                        .behaviour_mut()
+                        .floodsub
+                        .publish(POOL_TX_TOPIC.clone(), json.as_bytes());
+                    println!("send p2p: {:?}", new_tx);
+                }
             }
         }
     }

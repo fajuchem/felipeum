@@ -1,5 +1,7 @@
-use felipeum_transaction_pool::pool::{PoolTransaction, TransactionId, TransactionPool};
-use jsonrpsee::core::{async_trait, RpcResult};
+use felipeum_primitives::transaction::{Transaction, TransactionId};
+use felipeum_signature::keypair::new_keypair;
+use felipeum_transaction_pool::pool::Pool;
+use jsonrpsee::core::{async_trait, Error, RpcResult};
 use std::net::SocketAddr;
 
 use jsonrpsee::proc_macros::rpc;
@@ -18,44 +20,65 @@ pub struct TransactionRequest {
 pub trait RpcSpec {
     #[method(name = "sendTransaction")]
     async fn send_transaction(&self, tx: TransactionRequest) -> RpcResult<String>;
+
+    #[method(name = "newAccount")]
+    async fn new_account(&self) -> RpcResult<NewAccount>;
 }
 
 struct RpcServer {
-    transaction_pool: TransactionPool,
+    transaction_pool: Pool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct NewAccount {
+    pub public_key: String,
+    pub private_key: String,
 }
 
 #[async_trait]
 impl RpcSpecServer for RpcServer {
     async fn send_transaction(&self, tx: TransactionRequest) -> RpcResult<String> {
-        let pool_transaction = PoolTransaction {
-            transaction_id: TransactionId::new(10, 1),
+        let pool_transaction = Transaction {
+            transaction_id: TransactionId::new(tx.value, 1),
             sender: tx.from,
             hash: "".to_string(),
             nonce: 1,
         };
-        {
-            self.transaction_pool.add_transaction(pool_transaction);
+        let txs = self.transaction_pool.get_all();
+        println!("{:?}", txs);
+
+        match self.transaction_pool.add_transaction(pool_transaction) {
+            Ok(tx) => Ok(tx.hash),
+            Err(msg) => Err(Error::Custom(msg.hash().to_string())),
         }
-        Ok("hi".to_string())
+    }
+
+    async fn new_account(&self) -> RpcResult<NewAccount> {
+        match new_keypair() {
+            Ok(k) => Ok(NewAccount {
+                public_key: hex::encode(k.public_key()),
+                private_key: hex::encode(k.secret()),
+            }),
+
+            Err(msg) => Err(Error::Custom(msg.to_string())),
+        }
     }
 }
 
 impl RpcServer {
-    pub fn new(transaction_pool: TransactionPool) -> Self {
+    pub fn new(transaction_pool: Pool) -> Self {
         RpcServer { transaction_pool }
     }
 }
 
-pub async fn run_server() -> anyhow::Result<SocketAddr> {
+pub async fn run_server(transaction_pool: Pool) -> anyhow::Result<SocketAddr> {
     let server = ServerBuilder::default().build("127.0.0.1:4500").await?;
 
-    let transaction_pool = TransactionPool::new();
     let rpc_server = RpcServer::new(transaction_pool);
     let addr = server.local_addr()?;
     let handle = server.start(rpc_server.into_rpc())?;
 
-    // In this example we don't care about doing shutdown so let's it run forever.
-    // You may use the `ServerHandle` to shut it down or manage it yourself.
     tokio::spawn(handle.stopped());
 
     Ok(addr)

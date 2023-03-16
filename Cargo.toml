@@ -1,9 +1,11 @@
 [workspace]
 members = [
     "bin/felipeum",
+    "bin/felipeum-keygen",
     "crates/net/p2p",
     "crates/net/rpc",
     "crates/primitives",
     "crates/transaction-pool",
+    "crates/signature",
 ]
 default-members = ["bin/felipeum"]
