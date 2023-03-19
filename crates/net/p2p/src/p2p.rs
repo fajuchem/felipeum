@@ -1,6 +1,5 @@
 use crate::block::Block;
-use felipeum_primitives::transaction::Transaction;
-use felipeum_transaction_pool::pool::PoolError;
+use felipeum_transaction_pool::pool::{PoolError, PoolTransaction};
 use libp2p::{
     floodsub::{Floodsub, FloodsubEvent, Topic},
     identity,
@@ -37,7 +36,7 @@ pub enum EventType {
     LocalChainResponse(ChainResponse),
     Input(String),
     Init,
-    NewTx(Transaction),
+    NewTx(PoolTransaction),
 }
 
 #[derive(NetworkBehaviour)]
@@ -100,7 +99,7 @@ impl NetworkBehaviourEventProcess<FloodsubEvent> for AppBehaviour {
             } else if let Ok(block) = serde_json::from_slice::<Block>(&msg.data) {
                 info!("received new block from {}", msg.source.to_string());
                 self.app.try_add_block(block);
-            } else if let Ok(tx) = serde_json::from_slice::<Transaction>(&msg.data) {
+            } else if let Ok(tx) = serde_json::from_slice::<PoolTransaction>(&msg.data) {
                 info!(
                     "received new pool transaction from {}",
                     msg.source.to_string(),
@@ -156,9 +155,9 @@ pub fn handle_print_chain(swarm: &Swarm<AppBehaviour>) {
 }
 
 pub fn handle_new_pool_transaction(
-    tx: Transaction,
+    tx: PoolTransaction,
     swarm: &mut Swarm<AppBehaviour>,
-) -> Result<Transaction, PoolError> {
+) -> Result<PoolTransaction, PoolError> {
     let behaviour = swarm.behaviour_mut();
     behaviour.app.add_new_pool_transaction(tx)
 }

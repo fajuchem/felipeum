@@ -137,26 +137,25 @@ fn main() {
 }
 #[cfg(test)]
 mod tests {
+    use felipeum_signature::keypair::new_keypair;
+
     use super::*;
     #[test]
     fn test_sign() {
-        let message_bytes = "hello".as_bytes();
-        let secret = hex::decode(
-            "7c60b0a205667ede90d57e8c526d96bdb080bb0bb6a79b12e7e60703c15271d7".as_bytes(),
-        )
-        .unwrap();
-        println!("{:?}", secret);
+        let message_bytes = r#"{"from":"2","to":"tora","value":10,"nonce":1}"#.as_bytes();
 
-        let keypair = Keypair::from_bytes(&secret).unwrap();
+        let keypair = new_keypair().unwrap();
+
+        let pubkey_bytes = keypair.public_key();
+
+        println!("signing message \n");
         let signature = keypair.sign_message(message_bytes).unwrap();
 
-        let pubkey_bytes = hex::decode(
-            "b73657d720bf4bc498ddfb350bbfd6052ef9b3bc2e61e3eeaf0c7947f5febad9".as_bytes(),
-        )
-        .unwrap();
-
         let sig = Signature::new(&signature.to_bytes());
+        println!("signature {:?}", hex::encode(&sig.0));
+
         let is_valid = sig.verify(&pubkey_bytes, message_bytes);
+        println!("is_valid {:?}\n", is_valid);
         assert!(is_valid);
     }
     #[test]

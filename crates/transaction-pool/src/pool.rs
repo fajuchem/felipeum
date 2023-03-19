@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use felipeum_primitives::transaction::{Transaction, TransactionId};
+use felipeum_primitives::transaction::{TransactionId, TransactionSigned};
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -9,15 +9,14 @@ use tokio::sync::mpsc;
 #[derive(Debug, Clone)]
 pub struct OnNewBlockEvent {
     pub hash: String,
-    // TODO: create a struct for transaction to not expose the pool with block stuff
-    pub mined_transactions: Vec<Transaction>,
+    pub mined_transactions: Vec<PoolTransaction>,
 }
 
 /// Contains all state changes after a [`OnNewBlockEvent`] was processed
 #[derive(Debug, Clone)]
 pub struct OnNewBlockOutcome {
     pub block_hash: String,
-    pub mined: Vec<Transaction>,
+    pub mined: Vec<PoolTransaction>,
 }
 
 #[derive(Debug, Clone)]
@@ -38,7 +37,7 @@ impl Pool {
         self.pool.on_new_block(event);
     }
 
-    pub fn add_transaction(&self, tx: Transaction) -> Result<Transaction, PoolError> {
+    pub fn add_transaction(&self, tx: PoolTransaction) -> Result<PoolTransaction, PoolError> {
         self.pool.add_transaction(tx)
     }
 
@@ -46,11 +45,11 @@ impl Pool {
         self.pool.add_transaction_listener()
     }
 
-    pub fn get_all(&self) -> Vec<Arc<Transaction>> {
+    pub fn get_all(&self) -> Vec<Arc<PoolTransaction>> {
         self.pool.get_all()
     }
 
-    pub fn get(&self, key: TransactionId) -> Option<Transaction> {
+    pub fn get(&self, key: TransactionId) -> Option<PoolTransaction> {
         self.pool.get(key)
     }
 }
@@ -108,14 +107,13 @@ impl PoolInner {
         rx
     }
 
-    pub fn add_transaction(&self, tx: Transaction) -> Result<Transaction, PoolError> {
+    pub fn add_transaction(&self, tx: PoolTransaction) -> Result<PoolTransaction, PoolError> {
         let added = self.pool.write().add_transaction(tx);
         match added {
             Ok(transaction) => {
+                let pool_transaction = PoolTransaction::from(transaction.clone());
                 let event = NewTransactionEvent {
-                    transaction: ValidPoolTransaction {
-                        transaction: transaction.clone(),
-                    },
+                    transaction: pool_transaction,
                 };
                 self.on_new_transaction(event);
                 Ok(transaction)
@@ -124,11 +122,11 @@ impl PoolInner {
         }
     }
 
-    pub fn get(&self, key: TransactionId) -> Option<Transaction> {
+    pub fn get(&self, key: TransactionId) -> Option<PoolTransaction> {
         self.pool.read().get(key)
     }
 
-    pub fn get_all(&self) -> Vec<Arc<Transaction>> {
+    pub fn get_all(&self) -> Vec<Arc<PoolTransaction>> {
         self.pool.read().get_all()
     }
 
@@ -148,14 +146,29 @@ impl PoolInner {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct ValidPoolTransaction {
-    pub transaction: Transaction,
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PoolTransaction {
+    pub transaction: TransactionSigned,
+    pub transaction_id: TransactionId,
+    // todo: add origin, cost, etc..
+}
+
+impl From<TransactionSigned> for PoolTransaction {
+    fn from(transaction: TransactionSigned) -> Self {
+        let transaction_id = TransactionId::new(
+            transaction.transaction.from.clone(),
+            transaction.transaction.nonce,
+        );
+        Self {
+            transaction,
+            transaction_id,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct NewTransactionEvent {
-    pub transaction: ValidPoolTransaction,
+    pub transaction: PoolTransaction,
 }
 
 #[derive(Debug)]
@@ -173,7 +186,7 @@ impl PoolError {
 
 #[derive(Clone, Debug)]
 pub struct TxPool {
-    txs: BTreeMap<TransactionId, Transaction>,
+    txs: BTreeMap<TransactionId, PoolTransaction>,
 }
 
 impl TxPool {
@@ -183,7 +196,7 @@ impl TxPool {
         }
     }
 
-    fn remove_transaction(&mut self, tx: &Transaction) -> Option<Transaction> {
+    fn remove_transaction(&mut self, tx: &PoolTransaction) -> Option<PoolTransaction> {
         let internal = self.txs.remove(&tx.transaction_id)?;
 
         Some(internal)
@@ -200,21 +213,24 @@ impl TxPool {
         }
     }
 
-    pub fn get_all(&self) -> Vec<Arc<Transaction>> {
+    pub fn get_all(&self) -> Vec<Arc<PoolTransaction>> {
         self.txs.iter().map(|(_, v)| Arc::new(v.clone())).collect()
     }
 
-    pub fn get(&self, key: TransactionId) -> Option<Transaction> {
+    pub fn get(&self, key: TransactionId) -> Option<PoolTransaction> {
         self.txs.get(&key).map(|tx| tx.clone())
     }
 
-    pub fn add_transaction(&mut self, transaction: Transaction) -> Result<Transaction, PoolError> {
+    pub fn add_transaction(
+        &mut self,
+        transaction: PoolTransaction,
+    ) -> Result<PoolTransaction, PoolError> {
         match self
             .txs
-            .insert(transaction.transaction_id, transaction.clone())
+            .insert(transaction.transaction_id.clone(), transaction.clone())
         {
             Some(transaction) => Ok(transaction),
-            None => return Err(PoolError::DiscardedOnInsert(transaction.hash)),
+            None => return Err(PoolError::DiscardedOnInsert(transaction.transaction.hash)),
         }
     }
 }

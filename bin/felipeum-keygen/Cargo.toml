@@ -11,3 +11,4 @@ ed25519-dalek = "1.0.1"
 hex = "0.4.3"
 rand = { version = "0.7.0" }
 tiny-bip39 = "0.8.2"
+felipeum_signature = { path = "../../crates/signature" }

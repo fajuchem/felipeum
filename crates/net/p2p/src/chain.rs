@@ -1,7 +1,7 @@
 use crate::block::{calculate_hash, hash_to_binary_representation, Block, DIFFICULTY_PREFIX};
 use chrono::Utc;
 use felipeum_primitives::transaction::Transaction;
-use felipeum_transaction_pool::pool::{Pool, PoolError};
+use felipeum_transaction_pool::pool::{Pool, PoolError, PoolTransaction};
 use log::{error, warn};
 
 #[derive(Debug)]
@@ -96,7 +96,10 @@ impl Chain {
         }
     }
 
-    pub fn add_new_pool_transaction(&self, tx: Transaction) -> Result<Transaction, PoolError> {
+    pub fn add_new_pool_transaction(
+        &self,
+        tx: PoolTransaction,
+    ) -> Result<PoolTransaction, PoolError> {
         // TODO: here we are checking before insert to avoid a loop betweeen peers,
         // ideally we don't want to broadcast to all nodes but for now it's eaier this way
         match self.pool.get(tx.transaction_id.clone()) {

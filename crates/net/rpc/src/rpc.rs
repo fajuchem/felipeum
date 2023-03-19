@@ -1,7 +1,13 @@
-use felipeum_primitives::transaction::{Transaction, TransactionId};
+use felipeum_primitives::{
+    signature::Signature,
+    transaction::{Transaction, TransactionSigned},
+};
 use felipeum_signature::keypair::new_keypair;
-use felipeum_transaction_pool::pool::Pool;
-use jsonrpsee::core::{async_trait, Error, RpcResult};
+use felipeum_transaction_pool::pool::{Pool, PoolTransaction};
+use jsonrpsee::{
+    core::{async_trait, Error, RpcResult},
+    tracing::info,
+};
 use std::net::SocketAddr;
 
 use jsonrpsee::proc_macros::rpc;
@@ -14,6 +20,8 @@ pub struct TransactionRequest {
     pub from: String,
     pub to: String,
     pub value: u64,
+    pub nonce: u64,
+    pub signature: String,
 }
 
 #[rpc(server)]
@@ -39,17 +47,34 @@ pub struct NewAccount {
 #[async_trait]
 impl RpcSpecServer for RpcServer {
     async fn send_transaction(&self, tx: TransactionRequest) -> RpcResult<String> {
-        let pool_transaction = Transaction {
-            transaction_id: TransactionId::new(tx.value, 1),
-            sender: tx.from,
-            hash: "".to_string(),
-            nonce: 1,
+        let transaction = Transaction {
+            from: tx.from,
+            to: tx.to,
+            nonce: tx.nonce,
         };
-        let txs = self.transaction_pool.get_all();
-        println!("{:?}", txs);
+        info!("transaction: {:?}", transaction);
+
+        let encoded = transaction.signature_hash();
+        info!("encoded: {:?}", encoded);
+
+        let hash = std::str::from_utf8(&encoded).unwrap().to_string();
+        info!("hash: {:?}", hash);
+
+        let signature = Signature::new(tx.signature.as_bytes());
+        info!("signature: {:?}", signature);
+
+        let transaction_signed = TransactionSigned {
+            transaction,
+            hash,
+            signature,
+        };
+        info!("transaction_signed: {:?}", transaction_signed);
+
+        let pool_transaction = PoolTransaction::from(transaction_signed);
+        info!("pool_transaction: {:?}", pool_transaction);
 
         match self.transaction_pool.add_transaction(pool_transaction) {
-            Ok(tx) => Ok(tx.hash),
+            Ok(tx) => Ok(tx.transaction.hash),
             Err(msg) => Err(Error::Custom(msg.hash().to_string())),
         }
     }

@@ -5,6 +5,7 @@ use felipeum_p2p::{
         EventType, LocalChainRequest, CHAIN_TOPIC, KEYS, PEER_ID, POOL_TX_TOPIC,
     },
 };
+use felipeum_primitives::transaction::TransactionSigned;
 use felipeum_rpc::rpc::run_server;
 use felipeum_transaction_pool::pool::Pool;
 use libp2p::{
@@ -17,6 +18,8 @@ use libp2p::{
     Transport,
 };
 use log::{error, info};
+use parking_lot::Mutex;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::{
     io::{stdin, AsyncBufReadExt, BufReader},
@@ -31,22 +34,37 @@ pub async fn run_executor(pool: Pool, storage: Storage) {
         sleep(Duration::from_secs(3)).await;
         info!("executor");
         let all = pool.get_all();
-        println!("{:?}", all);
+
+        let txs = all
+            .into_iter()
+            .take(2)
+            .map(|tx| (*tx).transaction.clone())
+            .collect();
+        let block = Block { transactions: txs };
+        storage.add_block(block);
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct Block {
+    transactions: Vec<TransactionSigned>,
 }
 
 #[derive(Clone)]
 pub struct Storage {
-    blocks: Vec<String>,
+    // TODO: change vector to hashset
+    blocks: Arc<Mutex<Vec<Block>>>,
 }
 
 impl Storage {
     fn new() -> Self {
-        Self { blocks: vec![] }
+        Self {
+            blocks: Arc::new(Mutex::new(vec![])),
+        }
     }
 
-    fn add_block(&mut self, block: String) {
-        self.blocks.push(block);
+    fn add_block(&self, block: Block) {
+        self.blocks.lock().push(block);
     }
 }
 
@@ -118,7 +136,7 @@ async fn main() {
                 tx = recv_trans.recv() => {
                     println!("new tx added in the local pool");
                     match tx {
-                        Some(tx) => Some(EventType::NewTx(tx.transaction.transaction)),
+                        Some(tx) => Some(EventType::NewTx(tx.transaction)),
                         None => None,
                     }
                 },
