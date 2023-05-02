@@ -4,23 +4,29 @@ use felipeum_primitives::{
 };
 use felipeum_signature::keypair::new_keypair;
 use felipeum_transaction_pool::pool::{Pool, PoolTransaction};
+use jsonrpsee::proc_macros::rpc;
+use jsonrpsee::server::ServerBuilder;
 use jsonrpsee::{
     core::{async_trait, Error, RpcResult},
     tracing::info,
 };
-use std::net::SocketAddr;
-
-use jsonrpsee::proc_macros::rpc;
-use jsonrpsee::server::ServerBuilder;
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
+use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TransactionRequest {
+pub struct InnerTransactionRequest {
     pub from: String,
     pub to: String,
     pub value: u64,
     pub nonce: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionRequest {
+    pub transaction: InnerTransactionRequest,
     pub signature: String,
 }
 
@@ -48,20 +54,22 @@ pub struct NewAccount {
 impl RpcSpecServer for RpcServer {
     async fn send_transaction(&self, tx: TransactionRequest) -> RpcResult<String> {
         let transaction = Transaction {
-            from: tx.from,
-            to: tx.to,
-            nonce: tx.nonce,
+            from: tx.transaction.from,
+            to: tx.transaction.to,
+            nonce: tx.transaction.nonce,
         };
         info!("transaction: {:?}", transaction);
 
-        let encoded = transaction.signature_hash();
-        info!("encoded: {:?}", encoded);
+        // let encoded = transaction.signature_hash();
+        // info!("encoded: {:?}", encoded);
 
-        let hash = std::str::from_utf8(&encoded).unwrap().to_string();
-        info!("hash: {:?}", hash);
+        // let hash = std::str::from_utf8(&encoded).unwrap().to_string();
+        // info!("hash: {:?}", hash);
 
-        let signature = Signature::new(tx.signature.as_bytes());
-        info!("signature: {:?}", signature);
+        // let signature = Signature::new(tx.signature.as_bytes());
+        // info!("signature: {:?}", signature);
+        let signature = Signature::new("asdf".as_bytes());
+        let hash = "asdf".to_string();
 
         let transaction_signed = TransactionSigned {
             transaction,
@@ -98,7 +106,16 @@ impl RpcServer {
 }
 
 pub async fn run_server(transaction_pool: Pool) -> anyhow::Result<SocketAddr> {
-    let server = ServerBuilder::default().build("127.0.0.1:4500").await?;
+    let cors = CorsLayer::new()
+        .allow_methods(Any)
+        .allow_origin(Any)
+        .allow_headers(Any);
+    let middleware = tower::ServiceBuilder::new().layer(cors);
+
+    let server = ServerBuilder::default()
+        .set_middleware(middleware)
+        .build("127.0.0.1:4500")
+        .await?;
 
     let rpc_server = RpcServer::new(transaction_pool);
     let addr = server.local_addr()?;

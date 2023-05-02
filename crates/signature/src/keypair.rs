@@ -60,7 +60,7 @@ pub fn keypair_from_seed(seed: &[u8]) -> Result<Keypair, Box<dyn Error>> {
 
 pub fn new_keypair() -> Result<Keypair, Box<dyn Error>> {
     let mnemonic_type = MnemonicType::for_word_count(12)?;
-    let mnemonic = Mnemonic::new(mnemonic_type, Language::English);
+        let mnemonic = Mnemonic::new(mnemonic_type, Language::English);
     let passphrase: &str = "";
     let seed = Seed::new(&mnemonic, &passphrase);
     let keypair = keypair_from_seed(seed.as_bytes())?;

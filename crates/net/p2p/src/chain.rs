@@ -1,6 +1,6 @@
 use crate::block::{calculate_hash, hash_to_binary_representation, Block, DIFFICULTY_PREFIX};
 use chrono::Utc;
-use felipeum_primitives::transaction::Transaction;
+
 use felipeum_transaction_pool::pool::{Pool, PoolError, PoolTransaction};
 use log::{error, warn};
 
